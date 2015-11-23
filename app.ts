@@ -50,12 +50,12 @@ $(document).ready(function(){
     private displayView: DisplayView;
     private adminVisible: boolean;
     private adminView: AdminView;
-    private clickHandle: JQuery;
+    private numClicksHandle: JQuery;
     private listHandle: JQuery;
     private adminHandle: AdminViewHandles;
 
     constructor(model: Model, listView: ListView, displayView: DisplayView, adminView: AdminView) {
-      let _this = this;
+      let self = this;
       this.model = model;
       this.listView = listView;
       this.displayView = displayView;
@@ -66,50 +66,86 @@ $(document).ready(function(){
       this.model.setActiveCat(this.model.getCatList()[0]);
       let activeCat = this.model.getActiveCat();
 
-      // Set up the list view
-      this.listHandle = this.listView.render(this.model.getCatList());
-      this.listHandle.change(function() {
-        _this.handleCatSelection(this.value);
-      });
-
-      // Set up the display view
-      this.clickHandle = this.displayView.render(activeCat);
-      this.clickHandle.click(function() {
-        _this.handleClick();
-      });
-
-      // Set up the admin view
-      this.adminHandle = this.adminView.render(activeCat, this.adminVisible);
-      this.adminHandle.adminButtonHandle.click(function(){
-        _this.handleAdminButtonClick();
-      });
+      // Set up the views
+      this.setUpListView();     
+      this.setUpDisplayView();
+      this.setUpAdminView();    
     }
 
     // Implementation
-    handleCatSelection(name: string): void { // Must add changing the admin panel
+    handleCatSelection(name: string): void {
       var cat: Cat = this.getCatByName(name);
-      this.model.setActiveCat(cat);
-      this.listHandle = this.displayView.render(cat);
-      this.adminView.render(cat, this.adminVisible);
+      let self = this;
+      this.model.setActiveCat(cat);      
+      this.numClicksHandle = this.displayView.render(cat);
+      this.numClicksHandle.click(function() { self.handleClick(); });
+      this.setUpAdminView();
     }
 
     handleClick(): void {
       this.model.handleClick();
-      this.displayView.handleClick(this.model.getActiveNumClicks());
+      let clicks = this.model.getActiveNumClicks();
+      this.displayView.handleClick(clicks);
+      this.adminView.handleClick(clicks);
     }
 
     handleAdminButtonClick(){
-      if(this.adminVisible) {
+      this.adminVisible = !this.adminVisible;
+      this.adminView.render(this.model.getActiveCat(), this.adminVisible);
+    }
+    
+    handleNameTyping(handle: JQuery) {
+      let typing: string = handle.val();
+      this.displayView.changeName(typing);
+    }
+    
+    handleClickTyping(handle: JQuery) {
+      let typing: string = handle.val();
+      this.displayView.changeNumClicks(typing);
+    }
+    
+    handleAdminFormSubmission() {
+      let clicks = Number(this.adminHandle.numClicksHandle.val());      
+      let cat = this.model.getActiveCat();      
+      if(clicks) {        
+        let name = this.adminHandle.nameHandle.val();
+        let url = this.adminHandle.urlHandle.val();
+        cat.setName(name);
+        cat.setImgSrc(url);
+        cat.setNumClicks(clicks);
+        this.setUpListView();
+        this.setUpDisplayView();
         this.adminVisible = false;
-        this.adminView.hideAdmin();
+        this.setUpAdminView();       
       } else {
-        console.log("Hello");
-        this.adminVisible = true;
-        this.adminView.render(this.model.getActiveCat(), this.adminVisible);
+        this.adminView.putTypeError();
       }
     }
-
+    
     // Helper methods
+    private setUpListView() {      
+      let self = this;
+      this.listHandle = this.listView.render(this.model.getCatList());
+      this.listHandle.change(function() { self.handleCatSelection($(this).val()); });
+    }
+    
+    private setUpDisplayView() {
+      let self = this;     
+      this.numClicksHandle = this.displayView.render(this.model.getActiveCat());
+      this.numClicksHandle.find("*").off();
+      this.numClicksHandle.click(function() { self.handleClick(); });
+    }
+    
+    private setUpAdminView() {
+      let activeCat = this.model.getActiveCat();
+      let self = this;
+      this.adminHandle = this.adminView.render(activeCat, self.adminVisible);
+      this.adminHandle.adminButtonHandle.click(function() { self.handleAdminButtonClick(); });
+      this.adminHandle.nameHandle.keyup(function() { self.handleNameTyping(self.adminHandle.nameHandle); });
+      this.adminHandle.numClicksHandle.keyup(function() { self.handleClickTyping(self.adminHandle.numClicksHandle); });
+      this.adminHandle.submitButtonHandle.click(function() { self.handleAdminFormSubmission(); }); 
+    }
+    
     private getCatByName(name: string): Cat {
       let counter = 0;
       let answer = null;
@@ -155,27 +191,31 @@ $(document).ready(function(){
     handleClick(numClicks) {
       $(".clicks").html(numClicks);
     }
+    
+    changeName = (name: string) => { $(".name").html(name) };
+    changeNumClicks = (clicks) => { $(".clicks").html(clicks) };
+
+ 
   }
 
   interface AdminViewHandles {
     adminButtonHandle: JQuery;
     nameHandle: JQuery;
     urlHandle: JQuery;
-    clickHandle: JQuery;
+    numClicksHandle: JQuery;
     submitButtonHandle: JQuery;
   }
 
   class AdminView {
     render(cat: Cat, show: boolean) {
-      console.log("Rendering admin view");
       let adminButtonHandle = $("button[name=admin-show]");
       let nameHandle = $("input[name=admin-name]");
       let urlHandle = $("input[name=admin-url]");
-      let clickHandle = $("input[name=admin-clicks]");
-      let submitButtonHandle = $("input[name=admin-submit]");
+      let numClicksHandle = $("input[name=admin-clicks]");
+      let submitButtonHandle = $("button[name=admin-submit]");
       nameHandle.val(cat.getName());
       urlHandle.val(cat.getImgSrc());
-      clickHandle.val(cat.getNumClicks());
+      numClicksHandle.val(cat.getNumClicks());
       if(!show) {
         $("#admin").hide();
       } else {
@@ -185,15 +225,17 @@ $(document).ready(function(){
         adminButtonHandle: adminButtonHandle,
         nameHandle: nameHandle,
         urlHandle: urlHandle,
-        clickHandle: clickHandle,
+        numClicksHandle,
         submitButtonHandle: submitButtonHandle
       }
       return listeners;
     }
 
-    hideAdmin() {
-      $("#admin").hide();
+    handleClick(clicks: number) {
+      $("input[name=admin-clicks]").val(clicks);
     }
+    
+    putTypeError = () => { $(".clicks").html("Enter a number only.") }; 
   }
 
   var cat1 = new Cat("Grumpy", "http://i.dailymail.co.uk/i/pix/2014/08/05/1407225932091_wps_6_SANTA_MONICA_CA_AUGUST_04.jpg");
@@ -206,5 +248,5 @@ $(document).ready(function(){
   var listView = new ListView();
   var displayView = new DisplayView();
   var adminView = new AdminView();
-  var octopus = new Octopus(model, listView, displayView, adminView);
+  new Octopus(model, listView, displayView, adminView);
 });

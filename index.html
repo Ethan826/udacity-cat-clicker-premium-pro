@@ -1,14 +1,26 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title></title>
-  </head>
-  <body>
-    <div id="cat-list"></div>
+<head>
+  <meta charset="utf-8">
+  <title></title>
+</head>
+<body>
+  <div id="cat-list"></div>
+  <hr>
+  <div id="cat-display"></div>
+  <button type="button" name="admin-show">Admin</button>
+  <div id="admin">
     <hr>
-    <div id="cat-display"></div>
-  </body>
+    <form>
+      <table>
+        <tr><td><label>Name: </td><td><input type="text" name="admin-name"></td></label></tr>
+        <tr><td><label>URL: </td><td><input type="text" name="admin-url"></td></label></tr>
+        <tr><td><label>Clicks: </td><td><input type="text" name="admin-clicks"></label></td></tr>
+      </table>
+      <button type="button" name="admin-submit">Submit</button>
+    </form>
+  </div>
+</body>
 </html>
 <script src="./node_modules/jquery/dist/jquery.min.js" charset="utf-8"></script>
 <script src="./app.js" charset="utf-8"></script>
